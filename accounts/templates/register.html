@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Face Recognition</title>
+    <style>
+        /* Import Google Font */
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: white;
+            text-align: center;
+        }
+
+        .register-container {
+            text-align: center;
+            width: 350px;
+            animation: fadeIn 1s ease-in-out;
+        }
+
+        h2 {
+            font-size: 1.8em;
+            margin-bottom: 15px;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 2px 2px 10px rgba(255, 255, 255, 0.3);
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            text-align: center;
+            outline: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Camera Box */
+        .camera-container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            margin: 20px 0;
+        }
+
+        video {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            width: 100%;
+            max-width: 300px;
+            height: auto;
+        }
+
+        canvas {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            width: 100%;
+            max-width: 300px;
+            height: auto;
+        }
+
+        button {
+            background: linear-gradient(135deg, #ff416c, #ff4b2b);
+            color: white;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            transition: all 0.3s ease-in-out;
+            display: block;
+        }
+
+        button:hover {
+            background: linear-gradient(135deg, #ff4b2b, #ff416c);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .message {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #fff;
+        }
+
+        /* Fade-in animation */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <h2>Register with Face Recognition</h2>
+        <form id="register-form">
+            <input type="text" name="username" id="username" placeholder="Username" required>
+
+            <!-- Camera Box -->
+            <div class="camera-container">
+                <video id="video" autoplay></video>
+                <button type="button" id="capture-button">Capture Face</button>
+                <canvas id="canvas"></canvas>
+            </div>
+
+            <button type="submit">Register</button>
+        </form>
+        <div class="message" id="message"></div> 
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureButton = document.getElementById('capture-button');
+        const registerForm = document.getElementById('register-form');
+        const messageDiv = document.getElementById('message');
+
+        let capturedImage = null;
+
+        // Request camera access
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then((stream) => {
+                video.srcObject = stream;
+            })
+            .catch((err) => {
+                console.error("Error accessing your camera", err);
+                messageDiv.innerText = "Camera not accessible. Please allow permissions.";
+            });
+
+        // Capture face
+        captureButton.addEventListener('click', () => {
+            if (!video.srcObject) {
+                messageDiv.innerText = "Please allow access to your camera.";
+                return;
+            }
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const context = canvas.getContext("2d");
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert captured image to Base64
+            capturedImage = canvas.toDataURL('image/jpeg');
+
+            messageDiv.innerText = "Face Captured Successfully!";
+        });
+
+        registerForm.onsubmit = async (e) =>{
+            e.preventDefault();
+
+            if (!capturedImage) {
+                messageDiv.innerText = "Please capture a face first";
+                return;
+            }
+
+            const formData = new FormData(registerForm);
+            formData.append('face_image', capturedImage);
+
+            try {
+                const response = await fetch('/register/', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                // Ensure we are handling a JSON response
+                const contentType = response.headers.get('Content-Type');
+                if (contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    messageDiv.innerText = data.message || 'Registration Successful';
+                } else {
+                    const errorText = await response.text();
+                    messageDiv.innerText = "Unexpected response from the server: " + errorText;
+                }
+            } catch (error) {
+                messageDiv.innerText = error.message || 'An error occurred during registration.';
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>
